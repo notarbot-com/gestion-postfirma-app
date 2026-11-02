@@ -30,7 +30,8 @@ import {autoUpdater} from 'electron-updater';
 
 const DEFAULT_URL = 'https://postfirma-ycxfw.ondigitalocean.app';
 const APP_ID = 'com.notarbot.postfirma';
-const NOMBRE = 'Gestión Postfirma';
+// En Mac el paquete se llama «Postfirma» (sin tilde: ver electron-builder.yml).
+const NOMBRE = process.platform === 'darwin' ? 'Postfirma' : 'Gestión Postfirma';
 const RETRY_MS = 10_000;
 // Al volver tras tanto tiempo oculta o minimizada, la página se recarga: un despliegue del
 // programa entretanto solo llegaría al reiniciar.

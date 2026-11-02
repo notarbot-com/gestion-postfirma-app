@@ -2,7 +2,9 @@
 
 La aplicación de Mac y Windows de **Gestión Postfirma**, el programa de gestión de expedientes
 posteriores a la firma notarial (Lexnova Soluciones SL). Abre el programa de producción en su
-propia ventana, con su icono en el Dock o en la barra de tareas.
+propia ventana, con su icono en el Dock o en la barra de tareas. En Mac se llama «Postfirma»
+(un nombre de paquete con tilde hace que Electron no arranque en Mac); en Windows, «Gestión
+Postfirma».
 
 **Descargas** (siempre la última versión):
 

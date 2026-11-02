@@ -1,5 +1,9 @@
 appId: com.notarbot.postfirma
-productName: Gestión Postfirma
+# Sin tilde: con «Gestión» en el nombre del paquete .app, Electron no encuentra sus procesos
+# auxiliares en Mac y la app muere al abrir (SIGTRAP; comprobado el 3-nov-2026 en GitHub
+# Actions con cuatro variantes). En Mac se llama «Postfirma», como el icono del móvil; en
+# Windows los accesos directos y la lista de programas dicen «Gestión Postfirma» (nsis).
+productName: Postfirma
 copyright: Copyright © Lexnova Soluciones SL
 directories:
   output: release
@@ -31,7 +35,7 @@ mac:
   artifactName: GestionPostfirma-mac.${ext}
 dmg:
   artifactName: GestionPostfirma.${ext}
-  title: Gestión Postfirma
+  title: Postfirma
 
 win:
   target:
@@ -46,6 +50,7 @@ nsis:
   createDesktopShortcut: always
   createStartMenuShortcut: true
   shortcutName: Gestión Postfirma
+  uninstallDisplayName: Gestión Postfirma
   artifactName: GestionPostfirma-Setup.${ext}
 
 # Nombres fijos, para que los enlaces de descarga no cambien nunca:
