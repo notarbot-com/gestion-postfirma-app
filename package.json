@@ -1,0 +1,24 @@
+{
+  "name": "gestion-postfirma-escritorio",
+  "productName": "Gestión Postfirma",
+  "version": "1.0.0",
+  "description": "Gestión Postfirma para Mac y Windows: el programa de expedientes en su propia ventana",
+  "author": "Lexnova Soluciones SL <info@notarbot.com>",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "npm run build && electron .",
+    "dev": "npm run build && electron . --url=http://localhost:5173",
+    "dist": "npm run build && electron-builder --publish never"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9"
+  },
+  "devDependencies": {
+    "@types/node": "24.3.1",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "typescript": "5.9.3"
+  }
+}

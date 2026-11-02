@@ -1,0 +1,59 @@
+appId: com.notarbot.postfirma
+productName: Gestión Postfirma
+copyright: Copyright © Lexnova Soluciones SL
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**
+  - assets/**
+  - package.json
+# Solo español e inglés: menos peso y los menús del sistema en español.
+electronLanguages: [es, en]
+
+mac:
+  category: public.app-category.business
+  target:
+    - target: dmg
+      arch: universal
+    # El zip es lo que descarga electron-updater en macOS (solo con la app firmada).
+    - target: zip
+      arch: universal
+  # Sin certificado de Apple se firma «ad hoc» (-c.mac.identity=-): macOS pide permitirla una
+  # vez en Privacidad y seguridad. Con CSC_LINK, APPLE_ID… en el entorno, firma y notariza.
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    CFBundleDevelopmentRegion: es
+    CFBundleLocalizations: [es]
+dmg:
+  artifactName: GestionPostfirma.${ext}
+  title: Gestión Postfirma
+zip:
+  artifactName: GestionPostfirma-mac.${ext}
+
+win:
+  target:
+    - target: nsis
+      arch: x64
+  icon: assets/icon.ico
+  executableName: GestionPostfirma
+nsis:
+  # Instalación por usuario: no hacen falta permisos de administrador en el despacho.
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Gestión Postfirma
+  artifactName: GestionPostfirma-Setup.${ext}
+
+# Nombres fijos, para que los enlaces de descarga no cambien nunca:
+# https://github.com/notarbot-com/gestion-postfirma-app/releases/latest/download/GestionPostfirma.dmg
+# https://github.com/notarbot-com/gestion-postfirma-app/releases/latest/download/GestionPostfirma-Setup.exe
+# Las apps instaladas leen latest.yml / latest-mac.yml de la última versión publicada.
+publish:
+  provider: github
+  owner: notarbot-com
+  repo: gestion-postfirma-app
+  releaseType: release
