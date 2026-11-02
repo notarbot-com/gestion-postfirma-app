@@ -27,11 +27,11 @@ mac:
   extendInfo:
     CFBundleDevelopmentRegion: es
     CFBundleLocalizations: [es]
+  # Nombre del zip del actualizador (el .dmg lleva el suyo en `dmg`).
+  artifactName: GestionPostfirma-mac.${ext}
 dmg:
   artifactName: GestionPostfirma.${ext}
   title: Gestión Postfirma
-zip:
-  artifactName: GestionPostfirma-mac.${ext}
 
 win:
   target:
