@@ -58,6 +58,20 @@ jobs:
         run: |
           APP="$(ls -d release/mac-universal/*.app | head -1)"
           node scripts/smoke.mjs "$APP/Contents/MacOS/$(basename "$APP" .app)"
+      - name: Diagnóstico (Mac)
+        if: failure() && runner.os == 'macOS'
+        run: |
+          APP="$(ls -d release/mac-universal/*.app | head -1)"
+          BIN="$APP/Contents/MacOS/$(basename "$APP" .app)"
+          codesign --verify --deep --strict --verbose=2 "$APP" || true
+          codesign -d --entitlements - "$APP" || true
+          lipo -archs "$BIN" || true
+          ELECTRON_ENABLE_LOGGING=1 "$BIN" --enable-logging=stderr --v=0 > arranque.log 2>&1 &
+          sleep 20; kill %1 2>/dev/null || true
+          head -80 arranque.log || true
+          ls -t ~/Library/Logs/DiagnosticReports/ 2>/dev/null | head
+          f="$(ls -t ~/Library/Logs/DiagnosticReports/*.ips 2>/dev/null | head -1)"
+          [ -n "$f" ] && head -c 4000 "$f" || true
       - name: Instalar y probar la app (Windows)
         if: runner.os == 'Windows'
         shell: pwsh

@@ -24,9 +24,9 @@ const child = spawn(exe, [...extra, `--remote-debugging-port=${PORT}`], {
   shell: process.platform === 'win32' && exe.endsWith('.cmd'),
 });
 let terminado = false;
-child.on('exit', (code) => {
+child.on('exit', (code, signal) => {
   if (!terminado) {
-    console.error(`La app se cerró sola (código ${code})`);
+    console.error(`La app se cerró sola (código ${code}, señal ${signal})`);
     process.exit(1);
   }
 });
