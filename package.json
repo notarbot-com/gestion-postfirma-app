@@ -1,7 +1,7 @@
 {
   "name": "gestion-postfirma-escritorio",
   "productName": "Gestión Postfirma",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Gestión Postfirma para Mac y Windows: el programa de expedientes en su propia ventana",
   "author": "Lexnova Soluciones SL <info@notarbot.com>",
   "private": true,

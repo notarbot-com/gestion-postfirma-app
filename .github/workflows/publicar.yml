@@ -2,7 +2,8 @@ name: Publicar
 
 # Compila la app de escritorio para Mac y Windows, comprueba en cada sistema que abre el
 # programa de producción y, con una etiqueta vX.Y.Z (igual a la versión de package.json),
-# publica los instaladores en las Releases de este repositorio. Desde ahí descargan los
+# añade Windows al borrador que deja scripts/publicar-mac.sh (Mac firmado y notarizado en el
+# Mac de Ignacio) y lo publica en las Releases de este repositorio. Desde ahí descargan los
 # enlaces de /aplicacion y se actualizan las apps instaladas (latest.yml / latest-mac.yml).
 on:
   push:
@@ -105,22 +106,27 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
+      # Solo Windows: el Mac de aquí arriba es una prueba sin firmar. El de verdad lo firma y
+      # notariza scripts/publicar-mac.sh en el Mac de Ignacio, que deja la versión en borrador.
       - uses: actions/download-artifact@v4
         with:
-          pattern: instaladores-*
+          name: instaladores-Windows
           path: release
-          merge-multiple: true
-      - name: Crear la versión con los instaladores
+      - name: Añadir Windows a la versión de Mac firmada y publicarla
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           ls -la release
-          # Primero en borrador con todo subido y luego pública: una app instalada nunca
-          # ve un latest.yml antes que su instalador.
-          gh release create "$GITHUB_REF_NAME" release/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --draft \
-            --title "Gestión Postfirma ${GITHUB_REF_NAME#v}" \
-            --notes "Instaladores de la app de escritorio. Mac: GestionPostfirma.dmg · Windows: GestionPostfirma-Setup.exe. Página de descarga: https://postfirma-ycxfw.ondigitalocean.app/aplicacion"
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --json assets -q '.assets[].name' > mac.txt; then
+            echo "::error::No hay borrador $GITHUB_REF_NAME: antes de la etiqueta, ejecuta scripts/publicar-mac.sh en el Mac."
+            exit 1
+          fi
+          for f in GestionPostfirma.dmg GestionPostfirma-mac.zip latest-mac.yml; do
+            grep -qx "$f" mac.txt || { echo "::error::Falta $f en el borrador (Mac firmado)."; exit 1; }
+          done
+          # Todo subido y luego pública: una app instalada nunca ve un latest.yml antes que su
+          # instalador.
+          gh release upload "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --clobber
           gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest

@@ -43,17 +43,25 @@ Los iconos salen de `frontend/scripts/iconos.py` del repositorio del programa:
 
 ## Publicar una versión
 
-1. Subir `version` en `package.json`.
-2. Etiqueta `vX.Y.Z` y push. El flujo **Publicar** compila en Mac y Windows reales, instala y
-   abre la app en cada uno (captura en los artefactos) y crea la Release con los instaladores.
-3. Windows baja la versión nueva solo (mira cada 4 h) y la instala al volver a abrir la app. En
-   Mac, mientras no esté firmada con certificado de Apple, no se actualiza sola: hay que volver
-   a descargar el .dmg (rara vez hace falta, porque el programa en sí se actualiza solo).
+1. Subir `version` en `package.json`, commit y push a `main`.
+2. En el Mac de Ignacio: `scripts/publicar-mac.sh`. Compila la app universal, la firma con el
+   Developer ID de IRGB Ventures, notariza y grapa la app y el .dmg, lo comprueba como lo verá
+   quien lo descargue y deja la versión `vX.Y.Z` en **borrador** con los ficheros de Mac.
+   `--probar` hace todo menos el borrador.
+3. Etiqueta `vX.Y.Z` y push. El flujo **Publicar** compila en Mac (prueba sin firmar) y Windows
+   reales, instala y abre la app en cada uno (captura en los artefactos), añade Windows al
+   borrador y lo publica. Sin el borrador de Mac, el flujo se para.
+4. Las apps instaladas bajan la versión nueva solas (miran cada 4 h) y la instalan al volver a
+   abrirlas. En Mac, solo desde una versión firmada: quien tenga la 1.0.0 (sin firmar) tiene que
+   bajar el .dmg una vez.
 
 ## Firma
 
-Sin firmar por ahora: Windows muestra SmartScreen («Windows protegió su PC» → Más información →
-Ejecutar de todas formas) y macOS pide permitirla una vez en Ajustes del Sistema → Privacidad y
-seguridad → «Abrir igualmente». Para firmar, los secretos `MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`,
-`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` y `APPLE_TEAM_ID` (Mac) y la firma de Windows en
-`electron-builder.yml`.
+- **Mac: firmada y notarizada desde la 1.0.1** con el Developer ID de IRGB Ventures L.L.C-FZ
+  (equipo 68NS5QU76H). Al abrirla, macOS solo pregunta si se quiere abrir una app descargada de
+  Internet. El certificado y la clave de Apple viven en el Mac de Ignacio
+  (`$POSTFIRMA_CLAVES_MAC`, por defecto `~/dev/novelista/_claves`) y nunca en los secretos de
+  GitHub. Si Lexnova abre su propia cuenta de Apple, se cambia ahí; las apps firmadas con IRGB
+  no se actualizarán solas a la nueva firma y habrá que bajar el .dmg una vez.
+- **Windows: sin firmar.** SmartScreen avisa («Windows protegió su PC» → Más información →
+  Ejecutar de todas formas). Firmarla requiere un certificado de firma de código de Windows.
