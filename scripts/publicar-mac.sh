@@ -36,9 +36,28 @@ set -a
 # shellcheck disable=SC1091
 . "$CLAVES/app-store-connect-irgb.env"
 set +a
-export CSC_LINK="$CLAVES/developer-id-irgb.p12"
-CSC_KEY_PASSWORD="$(cat "$CLAVES/developer-id-irgb-p12-clave.txt")"
-export CSC_KEY_PASSWORD
+# El certificado, en un llavero temporal propio. El que crea electron-builder con CSC_LINK falla
+# en macOS 26 («SecKeychainUnlock: The user name or passphrase you entered is not correct»).
+LLAVERO_DIR="$(mktemp -d)"
+LLAVERO="$LLAVERO_DIR/postfirma-firma.keychain-db"
+LLAVERO_CLAVE="$(openssl rand -hex 16)"
+LLAVEROS_ANTES=()
+while IFS= read -r k; do LLAVEROS_ANTES+=("$k"); done < <(security list-keychains -d user | tr -d '"' | sed 's/^ *//')
+limpiar_llavero() {
+  security list-keychains -d user -s "${LLAVEROS_ANTES[@]}"
+  security delete-keychain "$LLAVERO" 2>/dev/null || true
+  rm -rf "$LLAVERO_DIR"
+}
+trap limpiar_llavero EXIT
+security create-keychain -p "$LLAVERO_CLAVE" "$LLAVERO"
+security set-keychain-settings -lut 3600 "$LLAVERO"
+security unlock-keychain -p "$LLAVERO_CLAVE" "$LLAVERO"
+security import "$CLAVES/developer-id-irgb.p12" -k "$LLAVERO" \
+  -P "$(cat "$CLAVES/developer-id-irgb-p12-clave.txt")" -T /usr/bin/codesign -T /usr/bin/security >/dev/null
+security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$LLAVERO_CLAVE" "$LLAVERO" >/dev/null
+security list-keychains -d user -s "$LLAVERO" "${LLAVEROS_ANTES[@]}"
+unset CSC_LINK CSC_KEY_PASSWORD
+export CSC_KEYCHAIN="$LLAVERO" CSC_NAME="IRGB Ventures L.L.C-FZ (68NS5QU76H)"
 export APPLE_API_KEY="$CLAVES/AuthKey_${KEY_ID}.p8" APPLE_API_KEY_ID="$KEY_ID" APPLE_API_ISSUER="$ISSUER_ID"
 [ -f "$APPLE_API_KEY" ] || fallo "Falta $APPLE_API_KEY."
 
