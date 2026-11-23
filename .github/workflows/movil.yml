@@ -39,8 +39,9 @@ on:
         type: string
         default: ''
 
+# Solo lectura por defecto; escribir (la Release del APK) solo en el trabajo de Android.
 permissions:
-  contents: write
+  contents: read
 
 env:
   ID_APP: com.notarbot.postfirma
@@ -52,6 +53,8 @@ jobs:
   android:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    permissions:
+      contents: write
     defaults: { run: { working-directory: movil } }
     steps:
       - uses: actions/checkout@v4

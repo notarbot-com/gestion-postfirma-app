@@ -26,10 +26,13 @@
       var PROGRAMA = "https://postfirma-ycxfw.ondigitalocean.app/";
       function volver() { window.location.replace(PROGRAMA); }
       document.getElementById("reintentar").addEventListener("click", volver);
-      // Sin CORS: «no-cors» basta para saber si el servidor contesta.
+      // Esta página es local: el servidor no le contesta con CORS. Una imagen del programa solo
+      // carga si el servidor responde bien (un 503 o una página de error no son una imagen).
       setInterval(function () {
         if (navigator.onLine === false) return;
-        fetch(PROGRAMA + "api/health", { mode: "no-cors", cache: "no-store" }).then(volver, function () {});
+        var prueba = new Image();
+        prueba.onload = volver;
+        prueba.src = PROGRAMA + "favicon-32.png?t=" + Date.now();
       }, 5000);
     </script>
   </body>
