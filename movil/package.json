@@ -1,0 +1,24 @@
+{
+  "name": "postfirma-movil",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Postfirma para iPhone, iPad y Android: el programa de expedientes de producción en su propia app",
+  "author": "Lexnova Soluciones SL <info@notarbot.com>",
+  "scripts": {
+    "sync": "cap sync",
+    "iconos": "capacitor-assets generate --assetPath recursos --iconBackgroundColor '#1f4e79' --splashBackgroundColor '#f7f8fa' --splashBackgroundColorDark '#f7f8fa'"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/filesystem": "8.1.4",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/share": "8.0.3",
+    "@capacitor/splash-screen": "8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "8.5.3"
+  }
+}
