@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Postfirma · Sin conexión</title>
+    <style>
+      :root { color-scheme: light; --bg: #f7f8fa; --fg: #1f2530; --muted: #6b7584; --accent: #1f4e79; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--fg);
+        font-family: -apple-system, system-ui, Roboto, Arial, sans-serif; }
+      main { max-width: 26rem; padding: 0 24px; text-align: center; }
+      h1 { font-size: 1.25rem; margin: 0 0 8px; }
+      p { color: var(--muted); margin: 0 0 20px; line-height: 1.5; }
+      button { font: inherit; font-weight: 600; padding: 10px 20px; border-radius: 8px; border: 1px solid var(--accent);
+        background: var(--accent); color: #fff; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>No hay conexión con Postfirma</h1>
+      <p>Comprueba la conexión a internet. Lo volvemos a intentar solos cada pocos segundos.</p>
+      <button type="button" id="reintentar">Reintentar ahora</button>
+    </main>
+    <script>
+      // Misma dirección que server.url de capacitor.config.json.
+      var PROGRAMA = "https://postfirma-ycxfw.ondigitalocean.app/";
+      function volver() { window.location.replace(PROGRAMA); }
+      document.getElementById("reintentar").addEventListener("click", volver);
+      // Sin CORS: «no-cors» basta para saber si el servidor contesta.
+      setInterval(function () {
+        if (navigator.onLine === false) return;
+        fetch(PROGRAMA + "api/health", { mode: "no-cors", cache: "no-store" }).then(volver, function () {});
+      }, 5000);
+    </script>
+  </body>
+</html>

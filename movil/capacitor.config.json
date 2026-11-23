@@ -1,0 +1,32 @@
+{
+  "appId": "com.notarbot.postfirma",
+  "appName": "Postfirma",
+  "webDir": "www",
+  "backgroundColor": "#f7f8fa",
+  "appendUserAgent": "PostfirmaMovil/1",
+  "server": {
+    "url": "https://postfirma-ycxfw.ondigitalocean.app",
+    "errorPath": "sin-conexion.html"
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#f7f8fa",
+    "allowsLinkPreview": false
+  },
+  "android": {
+    "backgroundColor": "#f7f8fa",
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 700,
+      "launchAutoHide": true,
+      "backgroundColor": "#f7f8fa",
+      "showSpinner": false
+    },
+    "SystemBars": {
+      "insetsHandling": "native",
+      "style": "LIGHT"
+    }
+  }
+}

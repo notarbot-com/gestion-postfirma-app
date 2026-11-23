@@ -1,0 +1,202 @@
+name: Móvil (iPhone, iPad y Android)
+
+# La app del móvil (movil/, Capacitor 8) abre el Postfirma de producción, como la de escritorio: un cambio del
+# programa llega solo a todos los móviles con el despliegue y solo el envoltorio (icono, permisos, nativo) pide
+# versión nueva. Compila en GitHub porque el Mac no tiene Xcode ni Gradle (el repositorio es público: no gasta).
+#
+# - En cada cambio de movil/ (PR o main): compila Android e iPhone sin firmar, los abre en un emulador de Android y en
+#   simuladores de iPhone y iPad y guarda las capturas (artefacto «capturas»).
+# - A mano (Actions › Móvil › Run workflow) o con una etiqueta movil-vX.Y.Z:
+#     · Android: APK y AAB firmados con la clave de subida de Postfirma (Lexnova). El APK se publica en la Release fija
+#       «movil-android» (prerelease: no toca la «Latest» de la que se actualiza la app de escritorio), con enlace fijo
+#       …/releases/download/movil-android/Postfirma.apk.
+#     · iPhone e iPad: firma con la cuenta de Apple de LEXNOVA (la misma API que NoveLista) y sube a TestFlight.
+#       La ficha «Postfirma» (com.notarbot.postfirma) tiene que existir en App Store Connect: se crea a mano, la API
+#       no deja.
+#
+# Secretos (los sube Claude leyendo los ficheros, sin imprimirlos; detalle en movil/README.md):
+#   ASC_LEXNOVA_KEY_ID, ASC_LEXNOVA_ISSUER_ID, ASC_LEXNOVA_KEY_P8   clave de API de App Store Connect de Lexnova (Admin)
+#   IOS_LEXNOVA_CERT_KEY       clave privada del certificado de distribución de Lexnova (el mismo que NoveLista: así
+#                              no se crea otro certificado; Apple deja pocos por cuenta)
+#   variable IOS_LEXNOVA_TEAM_ID   Team ID de Lexnova (comprueba que los perfiles son de Lexnova)
+#   ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD   la clave de subida de Android (~/.config/postfirma-movil/)
+
+on:
+  pull_request:
+    paths: ['movil/**', '.github/workflows/movil.yml']
+  push:
+    branches: [main]
+    paths: ['movil/**', '.github/workflows/movil.yml']
+    tags: ['movil-v*']
+  workflow_dispatch:
+    inputs:
+      publicar:
+        description: 'Firmar y publicar: APK en la Release «movil-android» y iPhone a TestFlight'
+        type: boolean
+        default: true
+      build:
+        description: 'Número de build (vacío = número de esta ejecución). Cada subida, uno mayor.'
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+env:
+  ID_APP: com.notarbot.postfirma
+  BUILD_NUMBER: ${{ inputs.build || github.run_number }}
+  # Firmar y publicar: a mano con «publicar» o con una etiqueta movil-v*. Nunca en un PR.
+  PUBLICAR: ${{ (github.event_name == 'workflow_dispatch' && inputs.publicar) || startsWith(github.ref, 'refs/tags/movil-v') }}
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults: { run: { working-directory: movil } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: movil/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm ci
+      - run: npx cap sync android
+
+      - name: Compilar (prueba, firma de depuración)
+        working-directory: movil/android
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Activar KVM para el emulador
+        working-directory: .
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Abrir en el emulador
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: bash movil/scripts/probar-android.sh movil/android/app/build/outputs/apk/debug/app-debug.apk capturas
+
+      - name: Firmar (APK y AAB)
+        if: env.PUBLICAR == 'true'
+        working-directory: movil/android
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          POSTFIRMA_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          [ -n "$KEYSTORE_B64" ] || { echo "::error::Falta el secreto ANDROID_KEYSTORE_B64 (movil/README.md)."; exit 1; }
+          export POSTFIRMA_KEYSTORE="$RUNNER_TEMP/subida.jks"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$POSTFIRMA_KEYSTORE"
+          ./gradlew --no-daemon assembleRelease bundleRelease
+          rm -f "$POSTFIRMA_KEYSTORE"
+          mkdir -p ../salida
+          cp app/build/outputs/apk/release/app-release.apk ../salida/Postfirma.apk
+          cp app/build/outputs/bundle/release/app-release.aab "../salida/Postfirma-${BUILD_NUMBER}.aab"
+          "$ANDROID_HOME"/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner verify --print-certs ../salida/Postfirma.apk | grep -i sha-256
+
+      - name: Publicar el APK (Release fija «movil-android»)
+        if: env.PUBLICAR == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view movil-android >/dev/null 2>&1 || gh release create movil-android --prerelease \
+            --title "Postfirma para Android" \
+            --notes "La app de Postfirma para Android. Se descarga de aquí y se instala en el móvil; abre el programa de siempre."
+          gh release upload movil-android salida/Postfirma.apk --clobber
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: capturas-android, path: capturas/, retention-days: 14 }
+      - uses: actions/upload-artifact@v4
+        if: env.PUBLICAR == 'true'
+        with: { name: android-firmado, path: movil/salida/, retention-days: 30 }
+
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults: { run: { working-directory: movil } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: movil/package-lock.json }
+
+      # Apple solo acepta builds con el SDK de iOS 26 o posterior: el Xcode estable más nuevo del runner.
+      - name: Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | grep -v -i -E 'beta|release_candidate' | sort -V | tail -1)
+          sudo xcode-select -s "$X"
+          xcodebuild -version
+
+      - run: npm ci
+      - run: npx cap sync ios
+
+      - name: Número de build
+        run: sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/g" ios/App/App.xcodeproj/project.pbxproj
+
+      - name: Compilar para el simulador
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/sim \
+            CODE_SIGNING_ALLOWED=NO build > compilar-sim.log 2>&1 && r=0 || r=$?
+          grep -E "error:|\*\* BUILD" compilar-sim.log | tail -40 || true
+          exit $r
+
+      - name: Abrir en iPhone e iPad (simulador)
+        run: bash scripts/probar-ios.sh build/sim/Build/Products/Debug-iphonesimulator/App.app ../capturas
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: capturas-ios, path: capturas/, retention-days: 14 }
+
+      - name: Herramientas de firma
+        if: env.PUBLICAR == 'true'
+        run: pip3 install --quiet --break-system-packages codemagic-cli-tools || pip3 install --quiet codemagic-cli-tools
+
+      - name: Firma (certificado y perfil por la API de Apple, cuenta de Lexnova)
+        if: env.PUBLICAR == 'true'
+        env:
+          APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.ASC_LEXNOVA_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.ASC_LEXNOVA_ISSUER_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.ASC_LEXNOVA_KEY_P8 }}
+          CERTIFICATE_PRIVATE_KEY: ${{ secrets.IOS_LEXNOVA_CERT_KEY }}
+          EQUIPO: ${{ vars.IOS_LEXNOVA_TEAM_ID }}
+        run: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$ID_APP" --type IOS_APP_STORE --create
+          n=0
+          for f in "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/"*.mobileprovision; do
+            [ -f "$f" ] || continue
+            security cms -D -i "$f" > /tmp/perfil.plist
+            equipo=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' /tmp/perfil.plist)
+            echo "Perfil «$(/usr/libexec/PlistBuddy -c 'Print :Name' /tmp/perfil.plist)»: equipo $equipo"
+            [ "$equipo" = "$EQUIPO" ] || { echo "::error::El perfil es del equipo $equipo, no del de Lexnova ($EQUIPO)."; exit 1; }
+            n=$((n + 1))
+          done
+          [ "$n" -gt 0 ] || { echo "::error::No se ha descargado ningún perfil de distribución."; exit 1; }
+          keychain add-certificates
+          xcode-project use-profiles --project ios/App/App.xcodeproj
+
+      - name: Compilar el .ipa
+        if: env.PUBLICAR == 'true'
+        run: xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
+
+      - uses: actions/upload-artifact@v4
+        if: env.PUBLICAR == 'true'
+        with: { name: ios-ipa, path: movil/build/ios/ipa/*.ipa, retention-days: 14 }
+
+      - name: Subir a TestFlight
+        if: env.PUBLICAR == 'true'
+        env:
+          APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.ASC_LEXNOVA_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.ASC_LEXNOVA_ISSUER_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.ASC_LEXNOVA_KEY_P8 }}
+        run: app-store-connect publish --path "$(ls build/ios/ipa/*.ipa | head -1)"
+
+      - name: Restaurar el llavero
+        if: always() && env.PUBLICAR == 'true'
+        run: keychain use-login || true
