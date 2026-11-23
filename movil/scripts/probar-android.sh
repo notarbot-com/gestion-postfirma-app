@@ -16,12 +16,16 @@ echo "$foco"
 echo "$foco" | grep -q com.notarbot.postfirma || { echo "::error::Postfirma no está en primer plano"; exit 1; }
 # Capacitor apunta en el registro la dirección que carga; si falla, sale la página «Sin conexión».
 if grep -q "sin-conexion" "$SALIDA/android-logcat.txt"; then echo "::error::La app cayó en «Sin conexión»"; exit 1; fi
-# Que el programa haya arrancado de verdad: la pantalla de «Entrar» tiene que verse (accesibilidad de la vista web).
-adb shell uiautomator dump /sdcard/vista.xml >/dev/null 2>&1 || true
-adb shell cat /sdcard/vista.xml > "$SALIDA/android-vista.xml" 2>/dev/null || true
-if ! grep -q "Entrar" "$SALIDA/android-vista.xml"; then
-  echo "::error::No se ve la pantalla de «Entrar» del programa"
-  grep -E "Capacitor|chromium" "$SALIDA/android-logcat.txt" | grep -i -E "error|postfirma-ycxfw" | head -20 || true
+# Que el programa haya arrancado de verdad: se pregunta a la vista web (depuración, activa en la versión de
+# prueba) en qué dirección está. Se abre «/» y es el código del programa el que lleva a «/login» sin sesión: si la
+# dirección acaba en /login, la web ha cargado y su JavaScript funciona.
+sock=$(adb shell cat /proc/net/unix | grep -o 'webview_devtools_remote_[0-9]*' | head -1)
+[ -n "$sock" ] || { echo "::error::No aparece la vista web de la app"; exit 1; }
+adb forward tcp:9222 "localabstract:$sock" >/dev/null
+curl -s http://localhost:9222/json > "$SALIDA/android-paginas.json"
+cat "$SALIDA/android-paginas.json" | grep -E '"(url|title)"' || true
+if ! grep -q 'postfirma-ycxfw.ondigitalocean.app/login' "$SALIDA/android-paginas.json"; then
+  echo "::error::La vista web no ha llegado a /login del programa"
   exit 1
 fi
 echo "Android: abierto y en primer plano (captura en $SALIDA/android.png)."
